@@ -2,7 +2,7 @@
 
 var canvas = document.getElementById('canvas');
 var body = document.getElementById('body');
-body.keyUp = function() {
+document.keyUp = function() {
     alert('Up');
 }
 var context = canvas.getContext('2d');
@@ -23,7 +23,8 @@ function Pole(x, y) {
         'beton': 1,
         'murek': 2,
         'bomba': 3,
-        'ludzik': 4
+        'ludzik': 4,
+        'wybuch': 5
     };
 
     this.zawartosc;
@@ -71,6 +72,14 @@ function Pole(x, y) {
 
     this.jestBomba = function() {
         return this.typPola == this.typyPol.bomba ? 1 : 0;
+    };
+    
+    this.ustawWybuch = function() {
+        this.typPola = this.typyPol.wybuch;        
+    };
+
+    this.jestWybuch = function() {
+        return this.typPola == this.typyPol.wybuch ? 1 : 0;
     };
 }
 
@@ -133,6 +142,12 @@ function Ludzik(x, y, kolor) {
     this.index;
     this.stawiamBombe;
     this.umarlem;
+    
+    this.klasaRuchu;
+    
+    this.ustawKlaseRuchu = function(klasa) {
+        this.klasaRuchu = klasa;
+    }
 
     this.ustawIndex = function(index) {
         this.index = index;
@@ -162,7 +177,8 @@ function Ludzik(x, y, kolor) {
     };
 
     this.podlozBombe = function() {
-        var bomba = new Bomba(this.pozycja.x, this.pozycja.y);
+        console.log('bomba');
+        var bomba = new Bomba(this.pozycja.x, this.pozycja.y, 3);
         this.stawiamBombe = bomba;
     };
 
@@ -178,6 +194,7 @@ function MenagerLudzikow(grid, menagerBomb){
         this.kolekcjaLudzikow.push(ludzik);
 
         ludzik.ustawIndex(this.kolekcjaLudzikow.lenght-1);
+        ludzik.ustawKlaseRuchu((new Ruch(ludzik)).init());
     };
 
     this.usunLudzika = function(ludzik) {
@@ -194,14 +211,16 @@ function MenagerLudzikow(grid, menagerBomb){
     this.przerysuj = function() {
         for (index in this.kolekcjaLudzikow) {
             var ludzik = this.kolekcjaLudzikow[index];
-            console.log(ludzik);
+           /*  if (!lidzik) {
+                continue;
+            } */
 
             grid.wezPole(ludzik.pozycja).ustawPuste();
 
             this.czyLudzikUmarl(ludzik);
             this.czyLudzikStawiaBombe(ludzik);
 
-            var ruch = new Ruch(ludzik);
+            var ruch = ludzik.klasaRuchu;
             var ruchLudzika = ruch.ruchLudzika();
 
             var pole = grid.wezPole(ruchLudzika);
@@ -242,7 +261,7 @@ function Bomba(x, y, z) {
     this.pozycja = { x: x, y: y };
     this.zasieg = z || 1;
     this.zaplon = 3000;
-    this.czaswybuchu = 1500;
+    this.czaswybuchu = 300;
     this.kolor = '#ff8800';
     this.kolorWybuchu = '#0088ff';
     this.sciezkaWybuchu = [];
@@ -281,11 +300,9 @@ function Bomba(x, y, z) {
 
     this.rysujWybuch = function(){        
         context.fillStyle = this.kolorWybuchu;
-        var sciezkaBomby = this.sciezkaWybuchu;
-
-        for (kierunek in sciezkaBomby) {
-            for (pozycja in sciezkaBomby[kierunek]) {
-                var cp = sciezkaBomby[kierunek][pozycja];
+        for (kierunek in this.sciezkaWybuchu) {
+            for (pozycja in this.sciezkaWybuchu[kierunek]) {
+                var cp = this.sciezkaWybuchu[kierunek][pozycja];
                 context.fillRect(cp.x * f_size, cp.y * f_size, f_size, f_size);
             }
         }
@@ -310,6 +327,14 @@ function MenagerBomb(grid) {
     this.usunBombe = function() {
         var bomba = this.bomby.shift()
         grid.wezPole(bomba.pozycja).ustawPuste();
+        
+        for (kierunek in bomba.sciezkaWybuchu) {
+            for (pozycja in bomba.sciezkaWybuchu[kierunek]) {
+                var cp = bomba.sciezkaWybuchu[kierunek][pozycja];
+                grid.wezPole(cp).ustawPuste();
+            }
+        }
+        
     };
 
     this.przerysujBomby = function() {
@@ -317,10 +342,11 @@ function MenagerBomb(grid) {
 
         for (var i in this.bomby) {
             //console.log([this.bomby[i].zaplon, i]);
-            if (this.bomby[i].zaplon <= 0 && this.bomby[i].wybucha == 0) {
+            if (this.bomby[i].wybucha == 0 && this.bomby[i].zaplon <= 0) {
                 var sciezkaBomby = this.bomby[i].sciezkaBomby();
                 sciezkaBomby = this.palWszystko(sciezkaBomby);
                 this.bomby[i].wybuchnij(sciezkaBomby);
+                console.log('palWszystko');
                 //bombyDoUsuniecia++;
             } if(this.bomby[i].czaswybuchu <= 0 ) {
                 bombyDoUsuniecia++;
@@ -350,22 +376,24 @@ function MenagerBomb(grid) {
         for (kierunek in sciezkaBomby) {
             for (pozycja in sciezkaBomby[kierunek]) {
                 var cp = sciezkaBomby[kierunek][pozycja];
+                //console.log(cp);
                 var pole = grid.wezPole(cp);
                 if (pole.jestPuste()) {
                     wypalonaSciezka[kierunek].push(cp);
+                    pole.ustawWybuch();
                 }
                 else if (pole.jestBeton()) {
                     break;
                 }
                 else if (pole.jestMurek()) {
                     wypalonaSciezka[kierunek].push(cp);
-                    pole.ustawPuste();
+                    pole.ustawWybuch();
                     break;
                 }
                 else if (pole.jestLudzik()) {
                     wypalonaSciezka[kierunek].push(cp);
                     pole.zawartosc.umrzyj();
-                    pole.ustawPuste();
+                    pole.ustawWybuch();
                 }
                 else if (pole.jestBomba()) {
                     //wypalonaSciezka[kierunek].push(cp);
@@ -380,33 +408,68 @@ function MenagerBomb(grid) {
 }
 
 function Ruch(ludzik) {
-    this.ruchLudzika = function() {
-        var podlozBombe = Math.floor(Math.random() * 8);
-        var gdzie = Math.floor(4 * Math.random());
-        var nowaPozycja;
+    
+   
+    this.gdzie = -1;
+    this.podlozBombe = 0;
+    
+    this.onKeyPress = function(event){   
+       
+        this.gdzie = event.keyCode;
+    };
 
-        if (gdzie == 0) {
+    this.onKeyUp = function(event){
+        this.gdzie = -1;
+    };
+    
+    this.init = function() {
+        var self = this;
+        
+        document.onkeydown = function(e) {
+            self.onKeyPress(e);
+        };
+
+        document.onkeyup = function(e) {
+            self.onKeyUp(e);
+        };
+        
+        return self;
+    }
+    
+    this.ruchLudzika = function() {
+        /* var podlozBombe = Math.floor(Math.random() * 18);
+        var gdzie = Math.floor(4 * Math.random()); */
+        var nowaPozycja;
+        
+        if (this.gdzie == 32) {
+            ludzik.podlozBombe();
+        }
+        
+        if (this.gdzie == 40) {
             nowaPozycja = ludzik.idzWDol();
         }
-        else if (gdzie == 1) {
+        else if (this.gdzie == 38) {
             nowaPozycja = ludzik.idzWGore();
         }
-        else if (gdzie == 2) {
+        else if (this.gdzie == 39) {
             nowaPozycja = ludzik.idzWPrawo();
         }
-        else if (gdzie == 3) {
+        else if (this.gdzie == 37) {
             nowaPozycja = ludzik.idzWLewo();
-        }
-        if (podlozBombe == 1) {
-            ludzik.podlozBombe();
+        } 
+        else {
+            return ludzik.pozycja;
         }
 
         return nowaPozycja;
     }
 
-    this.sprawdzCzyLudzikMoze = function(nowaPozycja, pole, menagerLudzikow) {
-        if (pole.jestPuste() && menagerLudzikow.ludzikMozeWejscNaPole(pole)) {
+    this.sprawdzCzyLudzikMoze = function(nowaPozycja, pole) {
+        if (pole.jestPuste()) {
             ludzik.pozycja = nowaPozycja;
+        }
+        else if(pole.jestWybuch()) {
+            ludzik.umrzyj();
         }
     }
 }
@@ -435,7 +498,7 @@ function Rysuj() {
     };
 }
 
-var odswiezanie = 500;
+var odswiezanie = 70;
 
 var grid = (new MyGrid()).init();
 var menagerBomb = new MenagerBomb(grid);
@@ -462,10 +525,10 @@ var b5 = (new Bomba(10, 10 + i*j++, z));
 b5.zaplon = 7000;
 
 var bomby = [
-    b1,
+    /* b1,
     b2,
     b3,
-    b4,
+    b4, */
     b5
 ];
 
@@ -474,11 +537,11 @@ for (var bomba in bomby) {
 }
 
 var ludziki = [
-    //(new Ludzik(12, 12)),
-    //(new Ludzik(6, 6, '#ffff00')),
-    //(new Ludzik(10, 10, '#ff00ff')),
-    //(new Ludzik(6, 8, '#0f0f0f')),
-    //(new Ludzik(8, 8, '#000000'))
+  /*   (new Ludzik(12, 12)),
+    (new Ludzik(6, 6, '#ffff00')),
+    (new Ludzik(10, 10, '#ff00ff')),
+    (new Ludzik(6, 8, '#0f0f0f')), */
+    (new Ludzik(8, 8, '#000000'))
 ];
 
 for (var ludzik in ludziki) {
