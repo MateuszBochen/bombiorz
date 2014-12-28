@@ -142,6 +142,8 @@ function Ludzik(x, y, kolor) {
     this.index;
     this.stawiamBombe;
     this.umarlem;
+    this.czasPodkladaniaBomby = 500;
+    this.mogePostawicKolejnaBombe = 0;
     
     this.klasaRuchu;
     
@@ -174,12 +176,16 @@ function Ludzik(x, y, kolor) {
         //context.fillCircle(x*f_size+f_size/2,y*f_size+f_size/2,f_size/2);
         context.fillRect(this.pozycja.x*f_size, this.pozycja.y*f_size, f_size, f_size);
         //console.log(this.pozycja);
+        this.mogePostawicKolejnaBombe -= odswiezanie;
     };
 
     this.podlozBombe = function() {
-        console.log('bomba');
-        var bomba = new Bomba(this.pozycja.x, this.pozycja.y, 3);
-        this.stawiamBombe = bomba;
+        if(this.mogePostawicKolejnaBombe <= 0){
+            console.log('bomba');
+            this.mogePostawicKolejnaBombe = this.czasPodkladaniaBomby;
+            var bomba = new Bomba(this.pozycja.x, this.pozycja.y, 3);
+            this.stawiamBombe = bomba;
+        }
     };
 
     this.umrzyj = function() {
@@ -192,7 +198,6 @@ function MenagerLudzikow(grid, menagerBomb){
 
     this.dodajLudzika = function(ludzik) {
         this.kolekcjaLudzikow.push(ludzik);
-
         ludzik.ustawIndex(this.kolekcjaLudzikow.lenght-1);
         ludzik.ustawKlaseRuchu((new Ruch(ludzik)).init());
     };
