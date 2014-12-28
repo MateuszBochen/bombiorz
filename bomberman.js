@@ -381,7 +381,10 @@ function MenagerBomb(grid) {
         for (kierunek in sciezkaBomby) {
             for (pozycja in sciezkaBomby[kierunek]) {
                 var cp = sciezkaBomby[kierunek][pozycja];
-                //console.log(cp);
+                if(cp.x < 0 || cp.y < 0 || cp.x > width || cp.y > height) {
+                    continue;
+                }
+                console.log(cp);
                 var pole = grid.wezPole(cp);
                 if (pole.jestPuste()) {
                     wypalonaSciezka[kierunek].push(cp);
