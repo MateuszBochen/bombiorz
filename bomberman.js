@@ -118,8 +118,11 @@ function MyGrid() {
     };
 
     this.wezPole = function(pozycja) {
-        //console.log(pozycja);
-        return this.pola[pozycja.x][pozycja.y];
+        var n = pozycja;
+        n.x = Math.round(n.x);
+        n.y = Math.round(n.y);
+        console.log(['WP: ', n.x, n.y]);
+        return this.pola[n.x][n.y];
     }
 
     this.ustawPole = function(i, j) {
@@ -137,44 +140,60 @@ function MyGrid() {
 }
 
 function Ludzik(x, y, kolor) {
-    this.pozycja = { x: x, y: y };
+    this.pozycja = { x: x, y: y};
     this.kolor = kolor || '#ff0000';
     this.index;
     this.stawiamBombe;
     this.umarlem;
     this.czasPodkladaniaBomby = 500;
     this.mogePostawicKolejnaBombe = 0;
-    
+    this.speed = 5;
     this.klasaRuchu;
+    
+    this.ustawPozycje = function(nowaPozycja) {
+        this.pozycja.x = (nowaPozycja.x * f_size);// - (f_size/2);
+        this.pozycja.y = (nowaPozycja.y * f_size);// - (f_size/2);
+       
+        return this;
+    };
+
+    this.wezPozycje = function() {
+        return {
+            x: this.pozycja.x / f_size,
+            y: this.pozycja.y / f_size
+        };
+    };
+    
+    
     
     this.ustawKlaseRuchu = function(klasa) {
         this.klasaRuchu = klasa;
-    }
+    };
 
     this.ustawIndex = function(index) {
         this.index = index;
-    }
+    };
 
     this.idzWDol = function() {
-        return { x: this.pozycja.x, y: this.pozycja.y + 1 };
-    }
+        return { x: this.pozycja.x / f_size, y: (this.pozycja.y + this.speed) / f_size };
+    };
 
     this.idzWGore = function() {
-        return { x: this.pozycja.x, y: this.pozycja.y - 1 };
-    }
+        return { x: this.pozycja.x  / f_size, y: (this.pozycja.y - this.speed) / f_size };
+    };
 
     this.idzWPrawo = function() {
-        return { x: this.pozycja.x + 1, y: this.pozycja.y };
-    }
+        return { x: (this.pozycja.x + this.speed) / f_size, y: this.pozycja.y / f_size };
+    };
 
     this.idzWLewo = function() {
-        return { x: this.pozycja.x - 1, y: this.pozycja.y };
-    }
+        return { x: (this.pozycja.x - this.speed) / f_size, y: this.pozycja.y / f_size };
+    };
 
     this.rysuj = function() {
         context.fillStyle = this.kolor;
         //context.fillCircle(x*f_size+f_size/2,y*f_size+f_size/2,f_size/2);
-        context.fillRect(this.pozycja.x*f_size, this.pozycja.y*f_size, f_size, f_size);
+        context.fillRect(this.pozycja.x /* + (f_size/2)  */, this.pozycja.y /* + (f_size/2) */, f_size, f_size);
         //console.log(this.pozycja);
         this.mogePostawicKolejnaBombe -= odswiezanie;
     };
@@ -183,7 +202,7 @@ function Ludzik(x, y, kolor) {
         if(this.mogePostawicKolejnaBombe <= 0){
             console.log('bomba');
             this.mogePostawicKolejnaBombe = this.czasPodkladaniaBomby;
-            var bomba = new Bomba(this.pozycja.x, this.pozycja.y, 3);
+            var bomba = new Bomba(Math.round(this.wezPozycje().x), Math.round(this.wezPozycje().y), 3);
             this.stawiamBombe = bomba;
         }
     };
@@ -220,32 +239,22 @@ function MenagerLudzikow(grid, menagerBomb){
                 continue;
             } */
 
-            grid.wezPole(ludzik.pozycja).ustawPuste();
+            grid.wezPole(ludzik.wezPozycje()).ustawPuste();
 
             this.czyLudzikUmarl(ludzik);
             this.czyLudzikStawiaBombe(ludzik);
 
             var ruch = ludzik.klasaRuchu;
             var ruchLudzika = ruch.ruchLudzika();
-
+            var ruchLudzika2 = ruch.ruchLudzika();
+            console.log(['RL1: ',ruchLudzika.x, ruchLudzika.y]);
             var pole = grid.wezPole(ruchLudzika);
-            ruch.sprawdzCzyLudzikMoze(ruchLudzika, pole, this);
+            console.log(['RL2: ',ruchLudzika2.x, ruchLudzika2.y]);
+            ruch.sprawdzCzyLudzikMoze(ruchLudzika2, pole, this);            
             ludzik.rysuj();
-            grid.wezPole(ludzik.pozycja).ustawLudzika(ludzik);
+            grid.wezPole(ludzik.wezPozycje()).ustawLudzika(ludzik);
         }
     };
-
-    this.ludzikMozeWejscNaPole = function(pole) {
-        for (index in this.kolekcjaLudzikow) {
-            var ludzik = this.kolekcjaLudzikow[index];
-            if (ludzik.pozycja.x == pole.pozycja.x &&
-                ludzik.pozycja.y == pole.pozycja.y
-            ) {
-                return false;
-            }
-        }
-        return true;
-    }
 
     this.czyLudzikStawiaBombe = function(ludzik) {
         if (ludzik.stawiamBombe) {
@@ -443,7 +452,7 @@ function Ruch(ludzik) {
         
         return self;
     }
-    
+
     this.ruchLudzika = function() {
         /* var podlozBombe = Math.floor(Math.random() * 18);
         var gdzie = Math.floor(4 * Math.random()); */
@@ -466,15 +475,17 @@ function Ruch(ludzik) {
             nowaPozycja = ludzik.idzWLewo();
         } 
         else {
-            return ludzik.pozycja;
+            return ludzik.wezPozycje();
         }
 
         return nowaPozycja;
     }
 
     this.sprawdzCzyLudzikMoze = function(nowaPozycja, pole) {
-        if (pole.jestPuste()) {
-            ludzik.pozycja = nowaPozycja;
+        
+        if (pole.jestPuste() || pole.zawartosc == ludzik) {
+            console.log(pole);
+            ludzik.ustawPozycje(nowaPozycja);
         }
         else if(pole.jestWybuch()) {
             ludzik.umrzyj();
@@ -549,7 +560,7 @@ var ludziki = [
     (new Ludzik(6, 6, '#ffff00')),
     (new Ludzik(10, 10, '#ff00ff')),
     (new Ludzik(6, 8, '#0f0f0f')), */
-    (new Ludzik(8, 8, '#000000'))
+    (new Ludzik(0, 0, '#000000'))
 ];
 
 for (var ludzik in ludziki) {
